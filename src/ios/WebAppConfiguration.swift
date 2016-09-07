@@ -1,10 +1,10 @@
 final class WebAppConfiguration {
-  let userDefaults = NSUserDefaults.standardUserDefaults()
-  
+  let userDefaults = UserDefaults.standard
+
   /// The appId as defined in the runtime config
   var appId: String? {
     get {
-      return userDefaults.stringForKey("MeteorWebAppId")
+      return userDefaults.string(forKey: "MeteorWebAppId")
     }
     set {
       let oldValue = appId
@@ -12,17 +12,17 @@ final class WebAppConfiguration {
         if oldValue != nil {
           NSLog("appId seems to have changed, new: \(newValue!), old: \(oldValue!)")
         }
-        
-        userDefaults.setObject(newValue, forKey: "MeteorWebAppId")
+
+        userDefaults.set(newValue, forKey: "MeteorWebAppId")
         userDefaults.synchronize()
       }
     }
   }
-  
+
   /// The rootURL as defined in the runtime config
-  var rootURL: NSURL? {
+  var rootURL: URL? {
     get {
-      return userDefaults.URLForKey("MeteorWebAppRootURL")
+      return userDefaults.url(forKey: "MeteorWebAppRootURL")
     }
     set {
       let oldValue = rootURL
@@ -30,61 +30,61 @@ final class WebAppConfiguration {
         if oldValue != nil {
           NSLog("ROOT_URL seems to have changed, new: \(newValue!), old: \(oldValue!)")
         }
-        
-        userDefaults.setURL(newValue, forKey: "MeteorWebAppRootURL")
+
+        userDefaults.set(newValue, forKey: "MeteorWebAppRootURL")
         userDefaults.synchronize()
       }
     }
   }
-  
+
   /// The Cordova compatibility version as specified in the asset manifest
   var cordovaCompatibilityVersion: String? {
     get {
-      return userDefaults.stringForKey("MeteorWebAppCordovaCompatibilityVersion")
+      return userDefaults.string(forKey: "MeteorWebAppCordovaCompatibilityVersion")
     }
-    
+
     set {
       if newValue != cordovaCompatibilityVersion {
         if newValue == nil {
-          userDefaults.removeObjectForKey("MeteorWebAppCordovaCompatibilityVersion")
+          userDefaults.removeObject(forKey: "MeteorWebAppCordovaCompatibilityVersion")
         } else {
-          userDefaults.setObject(newValue, forKey: "MeteorWebAppCordovaCompatibilityVersion")
+          userDefaults.set(newValue, forKey: "MeteorWebAppCordovaCompatibilityVersion")
         }
         userDefaults.synchronize()
       }
     }
   }
-  
+
   /// The last seen initial version of the asset bundle
   var lastSeenInitialVersion: String? {
     get {
-      return userDefaults.stringForKey("MeteorWebAppLastSeenInitialVersion")
+      return userDefaults.string(forKey: "MeteorWebAppLastSeenInitialVersion")
     }
-    
+
     set {
       if newValue != lastSeenInitialVersion {
         if newValue == nil {
-          userDefaults.removeObjectForKey("MeteorWebAppLastSeenInitialVersion")
+          userDefaults.removeObject(forKey: "MeteorWebAppLastSeenInitialVersion")
         } else {
-          userDefaults.setObject(newValue, forKey: "MeteorWebAppLastSeenInitialVersion")
+          userDefaults.set(newValue, forKey: "MeteorWebAppLastSeenInitialVersion")
         }
         userDefaults.synchronize()
       }
     }
   }
-  
+
   /// The last downloaded version of the asset bundle
   var lastDownloadedVersion: String? {
     get {
-      return userDefaults.stringForKey("MeteorWebAppLastDownloadedVersion")
+      return userDefaults.string(forKey: "MeteorWebAppLastDownloadedVersion")
     }
 
     set {
       if newValue != lastDownloadedVersion {
         if newValue == nil {
-          userDefaults.removeObjectForKey("MeteorWebAppLastDownloadedVersion")
+          userDefaults.removeObject(forKey: "MeteorWebAppLastDownloadedVersion")
         } else {
-          userDefaults.setObject(newValue, forKey: "MeteorWebAppLastDownloadedVersion")
+          userDefaults.set(newValue, forKey: "MeteorWebAppLastDownloadedVersion")
         }
         userDefaults.synchronize()
       }
@@ -94,16 +94,16 @@ final class WebAppConfiguration {
   /// The last kwown good version of the asset bundle
   var lastKnownGoodVersion: String? {
     get {
-      return userDefaults.stringForKey("MeteorWebAppLastKnownGoodVersion")
+      return userDefaults.string(forKey: "MeteorWebAppLastKnownGoodVersion")
     }
 
     set {
       if newValue != lastKnownGoodVersion {
-        let userDefaults = NSUserDefaults.standardUserDefaults()
+        let userDefaults = UserDefaults.standard
         if newValue == nil {
-          userDefaults.removeObjectForKey("MeteorWebAppLastKnownGoodVersion")
+          userDefaults.removeObject(forKey: "MeteorWebAppLastKnownGoodVersion")
         } else {
-          userDefaults.setObject(newValue, forKey: "MeteorWebAppLastKnownGoodVersion")
+          userDefaults.set(newValue, forKey: "MeteorWebAppLastKnownGoodVersion")
         }
         userDefaults.synchronize()
       }
@@ -113,27 +113,27 @@ final class WebAppConfiguration {
   /// Blacklisted asset bundle versions
   var blacklistedVersions: [String] {
     get {
-      return userDefaults.arrayForKey("MeteorWebAppBlacklistedVersions") as? [String] ?? []
+      return userDefaults.array(forKey: "MeteorWebAppBlacklistedVersions") as? [String] ?? []
     }
 
     set {
       if newValue != blacklistedVersions {
         if newValue.isEmpty {
-          userDefaults.removeObjectForKey("MeteorWebAppBlacklistedVersions")
+          userDefaults.removeObject(forKey: "MeteorWebAppBlacklistedVersions")
         } else {
-          userDefaults.setObject(newValue, forKey: "MeteorWebAppBlacklistedVersions")
+          userDefaults.set(newValue, forKey: "MeteorWebAppBlacklistedVersions")
         }
         userDefaults.synchronize()
       }
     }
   }
-  
-  func addBlacklistedVersion(version: String) {
+
+  func addBlacklistedVersion(_ version: String) {
     var blacklistedVersions = self.blacklistedVersions
     blacklistedVersions.append(version)
     self.blacklistedVersions = blacklistedVersions
   }
-  
+
   func reset() {
     cordovaCompatibilityVersion = nil
     lastSeenInitialVersion = nil

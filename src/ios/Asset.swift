@@ -1,8 +1,8 @@
 struct Asset {
   let bundle: AssetBundle
   let filePath: String
-  var fileURL: NSURL {
-    return bundle.directoryURL.URLByAppendingPathComponent(filePath,
+  var fileURL: URL {
+    return bundle.directoryURL.appendingPathComponent(filePath,
       isDirectory: false)
   }
   let URLPath: String
