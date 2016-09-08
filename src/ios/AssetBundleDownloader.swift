@@ -223,7 +223,7 @@ final class AssetBundleDownloader: NSObject, URLSessionDelegate, URLSessionTaskD
     }
   }
 
-  // MARK: NSURLSessionDelegate
+  // MARK: URLSessionDelegate
 
   func urlSession(_ session: URLSession, didBecomeInvalidWithError error: Error?) {
     status = .invalid
@@ -232,7 +232,7 @@ final class AssetBundleDownloader: NSObject, URLSessionDelegate, URLSessionTaskD
   func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
   }
 
-  // MARK: NSURLSessionTaskDelegate
+  // MARK: URLSessionTaskDelegate
 
   func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
     if let error = error {
@@ -241,7 +241,7 @@ final class AssetBundleDownloader: NSObject, URLSessionDelegate, URLSessionTaskD
           NSLog("Download of asset: \(asset) did fail with error: \(error)")
 
           // If there is resume data, we store it and use it to recreate the task later
-          if let resumeData = (error as NSError).userInfo[NSURLSessionDownloadTaskResumeData] as? Data {
+          if let resumeData = (error as NSError).userInfo[URLSessionDownloadTaskResumeData] as? Data {
             resumeDataByAsset[asset] = resumeData
           }
           resumeLater()
@@ -250,9 +250,9 @@ final class AssetBundleDownloader: NSObject, URLSessionDelegate, URLSessionTaskD
     }
   }
 
-  // MARK: NSURLSessionDataDelegate
+  // MARK: URLSessionDataDelegate
 
-  func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: (URLSession.ResponseDisposition) -> Void) {
+  func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
     if status == .canceling { return }
 
     guard let response = response as? HTTPURLResponse else { return }
@@ -274,7 +274,14 @@ final class AssetBundleDownloader: NSObject, URLSessionDelegate, URLSessionTaskD
     }
   }
 
-  // MARK: NSURLSessionDownloadDelegate
+  @available(iOS 9.0, *)
+  func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didBecome streamTask: URLSessionStreamTask) {
+    if let asset = assetsDownloadingByTaskIdentifier.removeValue(forKey: dataTask.taskIdentifier) {
+      assetsDownloadingByTaskIdentifier[streamTask.taskIdentifier] = asset
+    }
+  }
+
+  // MARK: URLSessionDownloadDelegate
 
   func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didResumeAtOffset fileOffset: Int64, expectedTotalBytes: Int64) {
     if status == .canceling { return }
