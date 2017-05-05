@@ -37,7 +37,7 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
         configuration.appId = currentAssetBundle.appId
         configuration.rootURL = currentAssetBundle.rootURL
         configuration.cordovaCompatibilityVersion = currentAssetBundle.cordovaCompatibilityVersion
-        
+
         NSLog("Serving asset bundle version: \(currentAssetBundle.version)")
       }
     }
@@ -112,7 +112,7 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
         self?.revertToLastKnownGoodVersion()
       }
     }
-    
+
     NotificationCenter.default.addObserver(self, selector: #selector(WebAppLocalServer.pageDidLoad), name: NSNotification.Name.CDVPageDidLoad, object: webView)
 
     NotificationCenter.default.addObserver(self, selector: #selector(WebAppLocalServer.applicationDidEnterBackground), name: NSNotification.Name.UIApplicationDidEnterBackground, object: nil)
@@ -326,7 +326,7 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
       notifyError(WebAppError.unsuitableAssetBundle(reason: "Skipping downloading blacklisted version", underlyingError: nil))
       return false
     }
-    
+
     // Don't download versions potentially incompatible with the bundled native code
     if manifest.cordovaCompatibilityVersion != configuration.cordovaCompatibilityVersion {
       notifyError(WebAppError.unsuitableAssetBundle(reason: "Skipping downloading new version because the Cordova platform version or plugin versions have changed and are potentially incompatible", underlyingError: nil))
@@ -364,7 +364,8 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
 
     let options = [
       GCDWebServerOption_Port: NSNumber(value: localServerPort as UInt),
-      GCDWebServerOption_BindToLocalhost: true]
+      GCDWebServerOption_BindToLocalhost: true,
+      GCDWebServerOption_AutomaticallySuspendInBackground: false]
     try localServer.start(options: options)
 
     // Set localServerPort to the assigned port, in case it is different
@@ -488,7 +489,7 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
     guard let response = GCDWebServerFileResponse(file: filePath, byteRange: request.byteRange) else {
       return GCDWebServerResponse(statusCode: GCDWebServerClientErrorHTTPStatusCode.httpStatusCode_NotFound.rawValue)
     }
-    
+
     response.setValue("bytes", forAdditionalHeader: "Accept-Ranges")
 
     if shouldSetCookie {
