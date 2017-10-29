@@ -189,6 +189,7 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
 
         Log.i(LOG_TAG, "Serving asset bundle with version: " + currentAssetBundle.getVersion());
         printDirectoryContent(new File(URI.create(currentAssetBundle.getDirectoryUri().toString())), true);
+
         configuration.setAppId(currentAssetBundle.getAppId());
         configuration.setRootUrlString(currentAssetBundle.getRootUrlString());
         configuration.setCordovaCompatibilityVersion(currentAssetBundle.getCordovaCompatibilityVersion());
@@ -198,7 +199,7 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
             startStartupTimer();
         }
     }
-    
+
     private void switchPendingVersion(CallbackContext callbackContext) {
         // If there is a pending asset bundle, we make it the current
         if (pendingAssetBundle != null) {
@@ -206,7 +207,7 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
             currentAssetBundle = pendingAssetBundle;
             pendingAssetBundle = null;
         }
-        
+
         callbackContext.success();
     }
 
@@ -310,7 +311,7 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
 
     private void startupDidComplete(CallbackContext callbackContext) {
         removeStartupTimer();
-        
+
         Log.w(LOG_TAG, "Startup completed received. New good version is " + currentAssetBundle.getVersion());
 
         // If startup completed successfully, we consider a version good
@@ -415,7 +416,7 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
             @Override
             public Uri remapUri(Uri uri) {
                 if (currentAssetBundle == null) return null;
-                
+
                 Log.w(LOG_TAG, "Requesting asset " + uri.toString());
 
                 AssetBundle.Asset asset = currentAssetBundle.assetForUrlPath(uri.getPath());
@@ -530,7 +531,7 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
     void setTestingDelegate(TestingDelegate testingDelegate) {
         this.testingDelegate = testingDelegate;
     }
-    
+
     void printFileContent(Uri uri) {
         File file = new File(URI.create(uri.toString()));
         try {
