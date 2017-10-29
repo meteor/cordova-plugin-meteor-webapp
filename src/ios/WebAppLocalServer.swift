@@ -230,6 +230,19 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
     let result = CDVPluginResult(status: CDVCommandStatus_OK)
     self.commandDelegate?.send(result, callbackId: command.callbackId)
   }
+  
+  open func switchPendingVersion(_ command: CDVInvokedUrlCommand) {
+
+    // If there is a pending asset bundle, we make it the current
+    if let pendingAssetBundle = pendingAssetBundle {
+      NSLog("Switching pending version \(pendingAssetBundle.version) as the current asset bundle")
+      currentAssetBundle = pendingAssetBundle
+      self.pendingAssetBundle = nil
+    }
+
+    let result = CDVPluginResult(status: CDVCommandStatus_OK)
+    self.commandDelegate?.send(result, callbackId: command.callbackId)
+  }
 
   open func checkForUpdates(_ command: CDVInvokedUrlCommand) {
     guard let rootURL = configuration.rootURL else {
