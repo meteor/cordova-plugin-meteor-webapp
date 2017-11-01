@@ -124,7 +124,7 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
     
     localServer.stop();
     
-    localserver = nil;
+    localServer = nil;
     
     do {
       try startLocalServer()   
