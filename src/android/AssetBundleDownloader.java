@@ -6,6 +6,7 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
@@ -26,7 +27,8 @@ class AssetBundleDownloader {
 
     public interface Callback {
         public void onFinished();
-        public void onFailure(Throwable cause);
+
+        public void onFailure(Throwable cause, Boolean state);
     }
 
     private Callback callback;
@@ -95,7 +97,7 @@ class AssetBundleDownloader {
                         try {
                             IOUtils.writeToFile(response.body().source(), asset.getFile());
                         } catch (IOException e) {
-                            didFail(e);
+                            didFail(e, !deleteIfExists(asset.getFile()));
                             return;
                         }
 
@@ -129,6 +131,10 @@ class AssetBundleDownloader {
         }
     }
 
+    private boolean deleteIfExists(File file) {
+        return !file.exists() || file.delete();
+    }
+
     protected HttpUrl downloadUrlForAsset(AssetBundle.Asset asset) {
         String urlPath = asset.urlPath;
 
@@ -147,7 +153,7 @@ class AssetBundleDownloader {
             builder.addQueryParameter("meteor_dont_serve_index", "true");
         }
 
-        return  builder.build();
+        return builder.build();
     }
 
     protected void verifyResponse(Response response, AssetBundle.Asset asset) throws WebAppException {
@@ -205,13 +211,29 @@ class AssetBundleDownloader {
         }
     }
 
+    private Boolean cleanupDownload() {
+        return IOUtils.deleteRecursively(assetBundle.getDirectory());
+    }
+
     protected void didFail(Throwable cause) {
+        didFail(cause, false);
+    }
+
+    protected void didFail(Throwable cause, Boolean cleanupDownload) {
         if (canceled) return;
 
         cancel();
 
+        Boolean cleanState = true;
+        // If there is a risk that the partially downloaded update contains corrupted files we need
+        // to wipe it out.
+        if (cleanupDownload) {
+            cleanState = cleanupDownload();
+            // If it failed we need to be sure it would not be used.
+        }
+
         if (callback != null) {
-            callback.onFailure(cause);
+            callback.onFailure(cause, cleanState);
         }
     }
 
