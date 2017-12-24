@@ -364,8 +364,7 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
 
     let options = [
       GCDWebServerOption_Port: NSNumber(value: localServerPort as UInt),
-      GCDWebServerOption_BindToLocalhost: true,
-      GCDWebServerOption_AutomaticallySuspendInBackground: false]
+      GCDWebServerOption_BindToLocalhost: true]
     try localServer.start(options: options)
 
     // Set localServerPort to the assigned port, in case it is different

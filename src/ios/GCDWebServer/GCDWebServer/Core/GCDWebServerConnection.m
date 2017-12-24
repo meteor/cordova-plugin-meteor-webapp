@@ -300,6 +300,9 @@ NS_ASSUME_NONNULL_END
             GWS_DCHECK(requestURL);
           }
           NSString* urlPath = requestURL ? CFBridgingRelease(CFURLCopyPath((CFURLRef)requestURL)) : nil;  // Don't use -[NSURL path] which strips the ending slash
+          if (urlPath == nil) {
+            urlPath = @"/";  // CFURLCopyPath() returns NULL for a relative URL with path "//" contrary to -[NSURL path] which returns "/"
+          }
           NSString* requestPath = urlPath ? GCDWebServerUnescapeURLString(urlPath) : nil;
           NSString* queryString = requestURL ? CFBridgingRelease(CFURLCopyQueryString((CFURLRef)requestURL, NULL)) : nil;  // Don't use -[NSURL query] to make sure query is not unescaped;
           NSDictionary* requestQuery = queryString ? GCDWebServerParseURLEncodedForm(queryString) : @{};
@@ -352,7 +355,7 @@ NS_ASSUME_NONNULL_END
             } else {
               _request = [[GCDWebServerRequest alloc] initWithMethod:requestMethod url:requestURL headers:requestHeaders path:requestPath query:requestQuery];
               GWS_DCHECK(_request);
-              [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_MethodNotAllowed];
+              [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_NotImplemented];
             }
           } else {
             [self abortRequest:nil withStatusCode:kGCDWebServerHTTPStatusCode_InternalServerError];
@@ -753,7 +756,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
     NSString* authorizationHeader = [request.headers objectForKey:@"Authorization"];
     if ([authorizationHeader hasPrefix:@"Digest "]) {
       NSString* realm = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"realm");
-      if ([realm isEqualToString:_server.authenticationRealm]) {
+      if (realm && [_server.authenticationRealm isEqualToString:realm]) {
         NSString* nonce = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"nonce");
         if ([nonce isEqualToString:_digestAuthenticationNonce]) {
           NSString* username = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"username");
