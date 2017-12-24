@@ -31,14 +31,18 @@
 
 #import "GCDWebServerPrivate.h"
 
-@interface GCDWebServerDataRequest ()
-@property(nonatomic) NSMutableData* data;
-@end
+@interface GCDWebServerDataRequest () {
+@private
+  NSMutableData* _data;
 
-@implementation GCDWebServerDataRequest {
   NSString* _text;
   id _jsonObject;
 }
+@end
+
+@implementation GCDWebServerDataRequest
+
+@synthesize data = _data;
 
 - (BOOL)open:(NSError**)error {
   if (self.contentLength != NSUIntegerMax) {
@@ -68,7 +72,7 @@
   NSMutableString* description = [NSMutableString stringWithString:[super description]];
   if (_data) {
     [description appendString:@"\n\n"];
-    [description appendString:GCDWebServerDescribeData(_data, (NSString*)self.contentType)];
+    [description appendString:GCDWebServerDescribeData(_data, self.contentType)];
   }
   return description;
 }

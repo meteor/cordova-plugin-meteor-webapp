@@ -132,9 +132,18 @@ static void _ExecuteMainThreadRunLoopSources() {
 
 #endif
 
+@interface GCDWebServerHandler () {
+@private
+  GCDWebServerMatchBlock _matchBlock;
+  GCDWebServerAsyncProcessBlock _asyncProcessBlock;
+}
+@end
+
 @implementation GCDWebServerHandler
 
-- (instancetype)initWithMatchBlock:(GCDWebServerMatchBlock _Nonnull)matchBlock asyncProcessBlock:(GCDWebServerAsyncProcessBlock _Nonnull)processBlock {
+@synthesize matchBlock = _matchBlock, asyncProcessBlock = _asyncProcessBlock;
+
+- (id)initWithMatchBlock:(GCDWebServerMatchBlock)matchBlock asyncProcessBlock:(GCDWebServerAsyncProcessBlock)processBlock {
   if ((self = [super init])) {
     _matchBlock = [matchBlock copy];
     _asyncProcessBlock = [processBlock copy];
@@ -144,7 +153,9 @@ static void _ExecuteMainThreadRunLoopSources() {
 
 @end
 
-@implementation GCDWebServer {
+@interface GCDWebServer () {
+@private
+  id<GCDWebServerDelegate> __unsafe_unretained _delegate;
   dispatch_queue_t _syncQueue;
   dispatch_group_t _sourceGroup;
   NSMutableArray* _handlers;
@@ -153,14 +164,21 @@ static void _ExecuteMainThreadRunLoopSources() {
   CFRunLoopTimerRef _disconnectTimer;  // Accessed on main thread only
 
   NSDictionary* _options;
+  NSString* _serverName;
+  NSString* _authenticationRealm;
   NSMutableDictionary* _authenticationBasicAccounts;
   NSMutableDictionary* _authenticationDigestAccounts;
   Class _connectionClass;
+  BOOL _mapHEADToGET;
   CFTimeInterval _disconnectDelay;
+  dispatch_queue_priority_t _dispatchQueuePriority;
+  NSUInteger _port;
   dispatch_source_t _source4;
   dispatch_source_t _source6;
   CFNetServiceRef _registrationService;
   CFNetServiceRef _resolutionService;
+  int ipv4ListeningSocket;
+  int ipv6ListeningSocket;
   DNSServiceRef _dnsService;
   CFSocketRef _dnsSocket;
   CFRunLoopSourceRef _dnsSource;
@@ -175,6 +193,13 @@ static void _ExecuteMainThreadRunLoopSources() {
   BOOL _recording;
 #endif
 }
+@end
+
+@implementation GCDWebServer
+
+@synthesize delegate = _delegate, handlers = _handlers, port = _port, serverName = _serverName, authenticationRealm = _authenticationRealm,
+            authenticationBasicAccounts = _authenticationBasicAccounts, authenticationDigestAccounts = _authenticationDigestAccounts,
+            shouldAutomaticallyMapHEADToGET = _mapHEADToGET, dispatchQueuePriority = _dispatchQueuePriority;
 
 + (void)initialize {
   GCDWebServerInitializeFunctions();
@@ -440,6 +465,11 @@ static inline NSString* _EncodeBase64(NSString* string) {
                         error:(NSError**)error {
   int listeningSocket = socket(useIPv6 ? PF_INET6 : PF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (listeningSocket > 0) {
+    if (!useIPv6) {
+      ipv4ListeningSocket = listeningSocket;
+    } else {
+      ipv6ListeningSocket = listeningSocket;
+    }
     int yes = 1;
     setsockopt(listeningSocket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
 
@@ -547,12 +577,7 @@ static inline NSString* _EncodeBase64(NSString* string) {
     }
   }
 
-  struct sockaddr_in6 addr6;
-  bzero(&addr6, sizeof(addr6));
-  addr6.sin6_len = sizeof(addr6);
-  addr6.sin6_family = AF_INET6;
-  addr6.sin6_port = htons(port);
-  addr6.sin6_addr = bindToLocalhost ? in6addr_loopback : in6addr_any;
+  struct sockaddr_in6 addr6 = [self generateAddressWithPort:port bindToLocalhost:bindToLocalhost];
   int listeningSocket6 = [self _createListeningSocket:YES localAddress:&addr6 length:sizeof(addr6) maxPendingConnections:maxPendingConnections error:error];
   if (listeningSocket6 <= 0) {
     close(listeningSocket4);
@@ -577,7 +602,7 @@ static inline NSString* _EncodeBase64(NSString* string) {
     }];
   }
   _connectionClass = _GetOption(_options, GCDWebServerOption_ConnectionClass, [GCDWebServerConnection class]);
-  _shouldAutomaticallyMapHEADToGET = [_GetOption(_options, GCDWebServerOption_AutomaticallyMapHEADToGET, @YES) boolValue];
+  _mapHEADToGET = [_GetOption(_options, GCDWebServerOption_AutomaticallyMapHEADToGET, @YES) boolValue];
   _disconnectDelay = [_GetOption(_options, GCDWebServerOption_ConnectedStateCoalescingInterval, @1.0) doubleValue];
   _dispatchQueuePriority = [_GetOption(_options, GCDWebServerOption_DispatchQueuePriority, @(DISPATCH_QUEUE_PRIORITY_DEFAULT)) longValue];
 
@@ -717,6 +742,24 @@ static inline NSString* _EncodeBase64(NSString* string) {
 
 #if TARGET_OS_IPHONE
 
+- (BOOL)hasSocketError:(int)socket {
+    int error = 0;
+    socklen_t len = sizeof(error);
+    int retval = getsockopt(socket, SOL_SOCKET, SO_ERROR, &error, &len);
+    
+    if (retval != 0 ) {
+        /* there was a problem getting the error code */
+        GWS_LOG_ERROR(@"error getting socket error code: %s\n", strerror(retval));
+        return YES;
+    }
+    
+    if (error != 0) {
+        GWS_LOG_INFO(@"Socket error: %s on socket %d\n", strerror(error), socket);
+        return YES;
+    }
+    return NO;
+}
+
 - (void)_didEnterBackground:(NSNotification*)notification {
   GWS_DCHECK([NSThread isMainThread]);
   GWS_LOG_DEBUG(@"Did enter background");
@@ -728,12 +771,38 @@ static inline NSString* _EncodeBase64(NSString* string) {
 - (void)_willEnterForeground:(NSNotification*)notification {
   GWS_DCHECK([NSThread isMainThread]);
   GWS_LOG_DEBUG(@"Will enter foreground");
-  if (!_source4) {
+
+    if (_suspendInBackground && !_source4) {
     [self _start:NULL];  // TODO: There's probably nothing we can do on failure
+  }
+
+    if ([self isRunning] && ([self hasSocketError:ipv4ListeningSocket] || [self hasSocketError:ipv6ListeningSocket])) {
+      [self _stop];
+      [self _start:nil];
   }
 }
 
 #endif
+
+- (struct sockaddr_in)generateIpv4AddressWithPort:(NSInteger)port bindToLocalhost:(BOOL)bindToLocalhost {
+    struct sockaddr_in addr4;
+    bzero(&addr4, sizeof(addr4));
+    addr4.sin_len = sizeof(addr4);
+    addr4.sin_family = AF_INET;
+    addr4.sin_port = htons(port);
+    addr4.sin_addr.s_addr = bindToLocalhost ? htonl(INADDR_LOOPBACK) : htonl(INADDR_ANY);
+    return addr4;
+}
+
+- (struct sockaddr_in6)generateAddressWithPort:(NSInteger)port bindToLocalhost:(BOOL)bindToLocalhost {
+    struct sockaddr_in6 addr6;
+    bzero(&addr6, sizeof(addr6));
+    addr6.sin6_len = sizeof(addr6);
+    addr6.sin6_family = AF_INET6;
+    addr6.sin6_port = htons(port);
+    addr6.sin6_addr = bindToLocalhost ? in6addr_loopback : in6addr_any;
+    return addr6;
+}
 
 - (BOOL)startWithOptions:(NSDictionary*)options error:(NSError**)error {
   if (_options == nil) {
@@ -751,8 +820,8 @@ static inline NSString* _EncodeBase64(NSString* string) {
 #if TARGET_OS_IPHONE
     if (_suspendInBackground) {
       [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_didEnterBackground:) name:UIApplicationDidEnterBackgroundNotification object:nil];
-      [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_willEnterForeground:) name:UIApplicationWillEnterForegroundNotification object:nil];
     }
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_willEnterForeground:) name:UIApplicationWillEnterForegroundNotification object:nil];
 #endif
     return YES;
   } else {
@@ -768,10 +837,7 @@ static inline NSString* _EncodeBase64(NSString* string) {
 - (void)stop {
   if (_options) {
 #if TARGET_OS_IPHONE
-    if (_suspendInBackground) {
-      [[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationDidEnterBackgroundNotification object:nil];
-      [[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationWillEnterForegroundNotification object:nil];
-    }
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 #endif
     if (_source4) {
       [self _stop];
@@ -1271,9 +1337,9 @@ static void _LogResult(NSString* format, ...) {
                         success = NO;
 #if !TARGET_OS_IPHONE
 #if DEBUG
-                        if (GCDWebServerIsTextContentType((NSString*)[expectedHeaders objectForKey:@"Content-Type"])) {
-                          NSString* expectedPath = [NSTemporaryDirectory() stringByAppendingPathComponent:(NSString*)[[[NSProcessInfo processInfo] globallyUniqueString] stringByAppendingPathExtension:@"txt"]];
-                          NSString* actualPath = [NSTemporaryDirectory() stringByAppendingPathComponent:(NSString*)[[[NSProcessInfo processInfo] globallyUniqueString] stringByAppendingPathExtension:@"txt"]];
+                        if (GCDWebServerIsTextContentType([expectedHeaders objectForKey:@"Content-Type"])) {
+                          NSString* expectedPath = [NSTemporaryDirectory() stringByAppendingPathComponent:[[[NSProcessInfo processInfo] globallyUniqueString] stringByAppendingPathExtension:@"txt"]];
+                          NSString* actualPath = [NSTemporaryDirectory() stringByAppendingPathComponent:[[[NSProcessInfo processInfo] globallyUniqueString] stringByAppendingPathExtension:@"txt"]];
                           if ([expectedBody writeToFile:expectedPath atomically:YES] && [actualBody writeToFile:actualPath atomically:YES]) {
                             NSTask* task = [[NSTask alloc] init];
                             [task setLaunchPath:@"/usr/bin/opendiff"];

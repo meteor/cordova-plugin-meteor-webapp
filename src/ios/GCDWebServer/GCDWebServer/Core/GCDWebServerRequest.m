@@ -39,17 +39,22 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
 #define kGZipInitialBufferSize (256 * 1024)
 
 @interface GCDWebServerBodyDecoder : NSObject <GCDWebServerBodyWriter>
+- (id)initWithRequest:(GCDWebServerRequest*)request writer:(id<GCDWebServerBodyWriter>)writer;
 @end
 
 @interface GCDWebServerGZipDecoder : GCDWebServerBodyDecoder
 @end
 
-@implementation GCDWebServerBodyDecoder {
+@interface GCDWebServerBodyDecoder () {
+@private
   GCDWebServerRequest* __unsafe_unretained _request;
   id<GCDWebServerBodyWriter> __unsafe_unretained _writer;
 }
+@end
 
-- (instancetype)initWithRequest:(GCDWebServerRequest* _Nonnull)request writer:(id<GCDWebServerBodyWriter> _Nonnull)writer {
+@implementation GCDWebServerBodyDecoder
+
+- (id)initWithRequest:(GCDWebServerRequest*)request writer:(id<GCDWebServerBodyWriter>)writer {
   if ((self = [super init])) {
     _request = request;
     _writer = writer;
@@ -71,10 +76,14 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
 
 @end
 
-@implementation GCDWebServerGZipDecoder {
+@interface GCDWebServerGZipDecoder () {
+@private
   z_stream _stream;
   BOOL _finished;
 }
+@end
+
+@implementation GCDWebServerGZipDecoder
 
 - (BOOL)open:(NSError**)error {
   int result = inflateInit2(&_stream, 15 + 16);
@@ -134,55 +143,77 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
 
 @end
 
-@implementation GCDWebServerRequest {
+@interface GCDWebServerRequest () {
+@private
+  NSString* _method;
+  NSURL* _url;
+  NSDictionary* _headers;
+  NSString* _path;
+  NSDictionary* _query;
+  NSString* _type;
+  BOOL _chunked;
+  NSUInteger _length;
+  NSDate* _modifiedSince;
+  NSString* _noneMatch;
+  NSRange _range;
+  BOOL _gzipAccepted;
+  NSData* _localAddress;
+  NSData* _remoteAddress;
+
   BOOL _opened;
   NSMutableArray* _decoders;
-  id<GCDWebServerBodyWriter> __unsafe_unretained _writer;
   NSMutableDictionary* _attributes;
+  id<GCDWebServerBodyWriter> __unsafe_unretained _writer;
 }
+@end
+
+@implementation GCDWebServerRequest : NSObject
+
+@synthesize method = _method, URL = _url, headers = _headers, path = _path, query = _query, contentType = _type, contentLength = _length, ifModifiedSince = _modifiedSince, ifNoneMatch = _noneMatch,
+            byteRange = _range, acceptsGzipContentEncoding = _gzipAccepted, usesChunkedTransferEncoding = _chunked, localAddressData = _localAddress, remoteAddressData = _remoteAddress;
 
 - (instancetype)initWithMethod:(NSString*)method url:(NSURL*)url headers:(NSDictionary*)headers path:(NSString*)path query:(NSDictionary*)query {
   if ((self = [super init])) {
     _method = [method copy];
-    _URL = url;
+    _url = url;
     _headers = headers;
     _path = [path copy];
     _query = query;
 
-    _contentType = GCDWebServerNormalizeHeaderValue([_headers objectForKey:@"Content-Type"]);
-    _usesChunkedTransferEncoding = [GCDWebServerNormalizeHeaderValue([_headers objectForKey:@"Transfer-Encoding"]) isEqualToString:@"chunked"];
+    _type = GCDWebServerNormalizeHeaderValue([_headers objectForKey:@"Content-Type"]);
+    _chunked = [GCDWebServerNormalizeHeaderValue([_headers objectForKey:@"Transfer-Encoding"]) isEqualToString:@"chunked"];
     NSString* lengthHeader = [_headers objectForKey:@"Content-Length"];
     if (lengthHeader) {
       NSInteger length = [lengthHeader integerValue];
-      if (_usesChunkedTransferEncoding || (length < 0)) {
-        GWS_LOG_WARNING(@"Invalid 'Content-Length' header '%@' for '%@' request on \"%@\"", lengthHeader, _method, _URL);
+      if (_chunked || (length < 0)) {
+        GWS_LOG_WARNING(@"Invalid 'Content-Length' header '%@' for '%@' request on \"%@\"", lengthHeader, _method, _url);
         GWS_DNOT_REACHED();
         return nil;
       }
-      _contentLength = length;
-      if (_contentType == nil) {
-        _contentType = kGCDWebServerDefaultMimeType;
+      _length = length;
+      if (_type == nil) {
+        _type = kGCDWebServerDefaultMimeType;
       }
-    } else if (_usesChunkedTransferEncoding) {
-      if (_contentType == nil) {
-        _contentType = kGCDWebServerDefaultMimeType;
+    } else if (_chunked) {
+      if (_type == nil) {
+        _type = kGCDWebServerDefaultMimeType;
       }
-      _contentLength = NSUIntegerMax;
+      _length = NSUIntegerMax;
     } else {
-      if (_contentType) {
-        GWS_LOG_WARNING(@"Ignoring 'Content-Type' header for '%@' request on \"%@\"", _method, _URL);
-        _contentType = nil;  // Content-Type without Content-Length or chunked-encoding doesn't make sense
+      if (_type) {
+        GWS_LOG_WARNING(@"Ignoring 'Content-Type' header for '%@' request on \"%@\"", _method, _url);
+        _type = nil;  // Content-Type without Content-Length or chunked-encoding doesn't make sense
       }
-      _contentLength = NSUIntegerMax;
+      _length = NSUIntegerMax;
     }
 
     NSString* modifiedHeader = [_headers objectForKey:@"If-Modified-Since"];
     if (modifiedHeader) {
-      _ifModifiedSince = [GCDWebServerParseRFC822(modifiedHeader) copy];
+      _modifiedSince = [GCDWebServerParseRFC822(modifiedHeader) copy];
     }
-    _ifNoneMatch = [_headers objectForKey:@"If-None-Match"];
+    _noneMatch = [_headers objectForKey:@"If-None-Match"];
 
-    _byteRange = NSMakeRange(NSUIntegerMax, 0);
+    _range = NSMakeRange(NSUIntegerMax, 0);
     NSString* rangeHeader = GCDWebServerNormalizeHeaderValue([_headers objectForKey:@"Range"]);
     if (rangeHeader) {
       if ([rangeHeader hasPrefix:@"bytes="]) {
@@ -195,25 +226,25 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
             NSString* endString = [components objectAtIndex:1];
             NSInteger endValue = [endString integerValue];
             if (startString.length && (startValue >= 0) && endString.length && (endValue >= startValue)) {  // The second 500 bytes: "500-999"
-              _byteRange.location = startValue;
-              _byteRange.length = endValue - startValue + 1;
+              _range.location = startValue;
+              _range.length = endValue - startValue + 1;
             } else if (startString.length && (startValue >= 0)) {  // The bytes after 9500 bytes: "9500-"
-              _byteRange.location = startValue;
-              _byteRange.length = NSUIntegerMax;
+              _range.location = startValue;
+              _range.length = NSUIntegerMax;
             } else if (endString.length && (endValue > 0)) {  // The final 500 bytes: "-500"
-              _byteRange.location = NSUIntegerMax;
-              _byteRange.length = endValue;
+              _range.location = NSUIntegerMax;
+              _range.length = endValue;
             }
           }
         }
       }
-      if ((_byteRange.location == NSUIntegerMax) && (_byteRange.length == 0)) {  // Ignore "Range" header if syntactically invalid
+      if ((_range.location == NSUIntegerMax) && (_range.length == 0)) {  // Ignore "Range" header if syntactically invalid
         GWS_LOG_WARNING(@"Failed to parse 'Range' header \"%@\" for url: %@", rangeHeader, url);
       }
     }
 
     if ([[_headers objectForKey:@"Accept-Encoding"] rangeOfString:@"gzip"].location != NSNotFound) {
-      _acceptsGzipContentEncoding = YES;
+      _gzipAccepted = YES;
     }
 
     _decoders = [[NSMutableArray alloc] init];
@@ -223,11 +254,11 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
 }
 
 - (BOOL)hasBody {
-  return _contentType ? YES : NO;
+  return _type ? YES : NO;
 }
 
 - (BOOL)hasByteRange {
-  return GCDWebServerIsValidByteRange(_byteRange);
+  return GCDWebServerIsValidByteRange(_range);
 }
 
 - (id)attributeForKey:(NSString*)key {
@@ -256,7 +287,7 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
 }
 
 - (BOOL)performOpen:(NSError**)error {
-  GWS_DCHECK(_contentType);
+  GWS_DCHECK(_type);
   GWS_DCHECK(_writer);
   if (_opened) {
     GWS_DNOT_REACHED();
@@ -281,11 +312,11 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
 }
 
 - (NSString*)localAddressString {
-  return GCDWebServerStringFromSockAddr(_localAddressData.bytes, YES);
+  return GCDWebServerStringFromSockAddr(_localAddress.bytes, YES);
 }
 
 - (NSString*)remoteAddressString {
-  return GCDWebServerStringFromSockAddr(_remoteAddressData.bytes, YES);
+  return GCDWebServerStringFromSockAddr(_remoteAddress.bytes, YES);
 }
 
 - (NSString*)description {
