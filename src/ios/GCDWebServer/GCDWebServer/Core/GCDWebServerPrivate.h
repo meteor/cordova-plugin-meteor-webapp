@@ -48,8 +48,6 @@
 #import "GCDWebServerFileResponse.h"
 #import "GCDWebServerStreamedResponse.h"
 
-NS_ASSUME_NONNULL_BEGIN
-
 /**
  *  Check if a custom logging facility should be used instead.
  */
@@ -84,27 +82,6 @@ NS_ASSUME_NONNULL_BEGIN
 #define GWS_DNOT_REACHED() XLOG_DEBUG_UNREACHABLE()
 
 /**
- *  Automatically detect if CocoaLumberJack is available and if so use
- *  it as a logging facility.
- */
-
-#elif defined(__has_include) && __has_include("CocoaLumberjack/CocoaLumberjack.h")
-
-#import <CocoaLumberjack/CocoaLumberjack.h>
-
-#define __GCDWEBSERVER_LOGGING_FACILITY_COCOALUMBERJACK__
-
-#undef LOG_LEVEL_DEF
-#define LOG_LEVEL_DEF GCDWebServerLogLevel
-extern DDLogLevel GCDWebServerLogLevel;
-
-#define GWS_LOG_DEBUG(...) DDLogDebug(__VA_ARGS__)
-#define GWS_LOG_VERBOSE(...) DDLogVerbose(__VA_ARGS__)
-#define GWS_LOG_INFO(...) DDLogInfo(__VA_ARGS__)
-#define GWS_LOG_WARNING(...) DDLogWarn(__VA_ARGS__)
-#define GWS_LOG_ERROR(...) DDLogError(__VA_ARGS__)
-
-/**
  *  If all of the above fail, then use GCDWebServer built-in
  *  logging facility.
  */
@@ -122,7 +99,7 @@ typedef NS_ENUM(int, GCDWebServerLoggingLevel) {
 };
 
 extern GCDWebServerLoggingLevel GCDWebServerLogLevel;
-extern void GCDWebServerLogMessage(GCDWebServerLoggingLevel level, NSString* format, ...) NS_FORMAT_FUNCTION(2, 3);
+extern void GCDWebServerLogMessage(GCDWebServerLoggingLevel level, NSString* _Nonnull format, ...) NS_FORMAT_FUNCTION(2, 3);
 
 #if DEBUG
 #define GWS_LOG_DEBUG(...)                                                                                                             \
@@ -176,6 +153,8 @@ extern void GCDWebServerLogMessage(GCDWebServerLoggingLevel level, NSString* for
 
 #endif
 
+NS_ASSUME_NONNULL_BEGIN
+
 /**
  *  GCDWebServer internal constants and APIs.
  */
@@ -188,7 +167,7 @@ static inline BOOL GCDWebServerIsValidByteRange(NSRange range) {
 }
 
 static inline NSError* GCDWebServerMakePosixError(int code) {
-  return [NSError errorWithDomain:NSPOSIXErrorDomain code:code userInfo:@{NSLocalizedDescriptionKey : [NSString stringWithUTF8String:strerror(code)]}];
+  return [NSError errorWithDomain:NSPOSIXErrorDomain code:code userInfo:@{NSLocalizedDescriptionKey : (NSString*)[NSString stringWithUTF8String:strerror(code)]}];
 }
 
 extern void GCDWebServerInitializeFunctions();
@@ -207,10 +186,10 @@ extern NSString* GCDWebServerStringFromSockAddr(const struct sockaddr* addr, BOO
 
 @interface GCDWebServer ()
 @property(nonatomic, readonly) NSMutableArray* handlers;
-@property(nonatomic, readonly) NSString* serverName;
-@property(nonatomic, readonly) NSString* authenticationRealm;
-@property(nonatomic, readonly) NSMutableDictionary* authenticationBasicAccounts;
-@property(nonatomic, readonly) NSMutableDictionary* authenticationDigestAccounts;
+@property(nonatomic, readonly, nullable) NSString* serverName;
+@property(nonatomic, readonly, nullable) NSString* authenticationRealm;
+@property(nonatomic, readonly, nullable) NSMutableDictionary* authenticationBasicAccounts;
+@property(nonatomic, readonly, nullable) NSMutableDictionary* authenticationDigestAccounts;
 @property(nonatomic, readonly) BOOL shouldAutomaticallyMapHEADToGET;
 @property(nonatomic, readonly) dispatch_queue_priority_t dispatchQueuePriority;
 - (void)willStartConnection:(GCDWebServerConnection*)connection;
