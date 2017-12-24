@@ -48,6 +48,8 @@ class AssetBundleManager {
 
     private AssetBundleDownloader assetBundleDownloader;
 
+    private Boolean canUsePartiallyDownloadedVersion = true;
+
     /** The initial asset bundle included in the app bundle */
     public final AssetBundle initialAssetBundle;
 
@@ -153,8 +155,11 @@ class AssetBundleManager {
                 }
 
                 // Else, get ready to download the new asset bundle
-
-                moveExistingDownloadDirectoryIfNeeded();
+                if (canUsePartiallyDownloadedVersion) {
+                    moveExistingDownloadDirectoryIfNeeded();
+                } else {
+                    deleteExistingDownloadDirectory();
+                }
 
                 // Create download directory
                 if (!downloadDirectory.mkdir()) {
@@ -181,6 +186,16 @@ class AssetBundleManager {
                 downloadAssetBundle(assetBundle, baseUrl);
             }
         });
+    }
+
+    private void deleteExistingDownloadDirectory() {
+        if (downloadDirectory.exists()) {
+            if (!IOUtils.deleteRecursively(downloadDirectory)) {
+                Log.w(LOG_TAG, "Could not delete download directory");
+            } else {
+                canUsePartiallyDownloadedVersion = true;
+            }
+        }
     }
 
     /** If there is an existing Downloading directory, move it
@@ -258,7 +273,8 @@ class AssetBundleManager {
             }
 
             @Override
-            public void onFailure(Throwable cause) {
+            public void onFailure(Throwable cause, Boolean state) {
+                canUsePartiallyDownloadedVersion = state;
                 didFail(cause);
             }
         });

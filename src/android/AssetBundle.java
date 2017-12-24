@@ -115,6 +115,14 @@ class AssetBundle {
         ownAssetsByURLPath.put(asset.urlPath, asset);
     }
 
+    public Uri getDirectoryUri() {
+        return directoryUri;
+    }
+
+    public File getDirectory() {
+        return resourceApi.mapUriToFile(directoryUri);
+    }
+
     public Set<Asset> getOwnAssets() {
         return new HashSet<Asset>(ownAssetsByURLPath.values());
     }
