@@ -6,7 +6,7 @@ protocol AssetBundleManagerDelegate: class {
 
 final class AssetBundleManager: AssetBundleDownloaderDelegate {
   let configuration: WebAppConfiguration
-  
+
   /// The directory used to store downloaded asset bundles
   let versionsDirectoryURL: URL
 
@@ -20,9 +20,9 @@ final class AssetBundleManager: AssetBundleDownloaderDelegate {
 
   private let fileManager = FileManager()
   private var downloadedAssetBundlesByVersion: [String: AssetBundle]
-  
+
   private var session: URLSession!
-  
+
   private var downloadDirectoryURL: URL
   private var assetBundleDownloader: AssetBundleDownloader?
   private var partiallyDownloadedAssetBundle: AssetBundle?
@@ -42,17 +42,17 @@ final class AssetBundleManager: AssetBundleDownloaderDelegate {
 
     downloadedAssetBundlesByVersion = [String: AssetBundle]()
     loadDownloadedAssetBundles()
-    
+
     let operationQueue = OperationQueue()
     operationQueue.maxConcurrentOperationCount = 1
     operationQueue.underlyingQueue = queue
-    
+
     // We use a separate to download the manifest, so we can use caching
-    // (which we disable for the session we use to download the other files 
+    // (which we disable for the session we use to download the other files
     // in AssetBundleDownloader)
     session = URLSession(configuration: URLSessionConfiguration.default, delegate: nil, delegateQueue: operationQueue)
   }
-  
+
   deinit {
     assetBundleDownloader?.cancel()
   }
@@ -90,7 +90,7 @@ final class AssetBundleManager: AssetBundleDownloaderDelegate {
   }
 
   func checkForUpdatesWithBaseURL(_ baseURL: URL) {
-    let manifestURL = URL(string: "manifest.json", relativeTo: baseURL)!
+    let manifestURL = URL(string: "__meteor__/webapp/manifest.json", relativeTo: baseURL)!
 
     NSLog("Start downloading asset manifest from: \(manifestURL)")
 
@@ -147,10 +147,10 @@ final class AssetBundleManager: AssetBundleDownloaderDelegate {
           self.didFinishDownloadingAssetBundle(assetBundle)
           return
         }
-        
+
         // Else, get ready to download the new asset bundle
         self.moveExistingDownloadDirectoryIfNeeded()
-        
+
         // Create download directory
         do {
           try self.fileManager.createDirectory(at: self.downloadDirectoryURL, withIntermediateDirectories: true, attributes: nil)
@@ -172,7 +172,7 @@ final class AssetBundleManager: AssetBundleDownloaderDelegate {
           self.didFailWithError(error)
         }
       }
-    }) 
+    })
 
     // If a new version is available, we want to know as soon as possible even
     // if other downloads are in progress
