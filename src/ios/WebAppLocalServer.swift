@@ -382,14 +382,13 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
   private func addHandlerForAssetBundle() {
     localServer.addHandler(match: { [weak self] (requestMethod, requestURL, requestHeaders, urlPath, urlQuery) -> GCDWebServerRequest! in
       if requestMethod != "GET" { return nil }
-      guard let urlPath = urlPath else { return nil }
       guard let asset = self?.currentAssetBundle?.assetForURLPath(urlPath) else { return nil }
 
       let request = GCDWebServerRequest(method: requestMethod, url: requestURL, headers: requestHeaders, path: urlPath, query: urlQuery)!
       request.setAttribute(asset, forKey: GCDWebServerRequestAttribute_Asset)
       return request
     }) { (request) -> GCDWebServerResponse! in
-        let asset = request?.attribute(forKey: GCDWebServerRequestAttribute_Asset) as! Asset
+        let asset = request.attribute(forKey: GCDWebServerRequestAttribute_Asset) as! Asset
         return self.responseForAsset(request!, asset: asset)
     }
   }
@@ -397,7 +396,6 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
   private func addHandlerForWwwDirectory() {
     localServer.addHandler(match: { [weak self] (requestMethod, requestURL, requestHeaders, urlPath, urlQuery) -> GCDWebServerRequest! in
       if requestMethod != "GET" { return nil }
-      guard let urlPath = urlPath else { return nil }
 
       // Do not serve files from /application, because these should only be served through the initial asset bundle
       if (urlPath.hasPrefix("/application")) { return nil }
@@ -409,7 +407,7 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
       request?.setAttribute(fileURL.path, forKey: GCDWebServerRequestAttribute_FilePath)
       return request
     }) { (request) -> GCDWebServerResponse! in
-      let filePath = request?.attribute(forKey: GCDWebServerRequestAttribute_FilePath) as! String
+      let filePath = request.attribute(forKey: GCDWebServerRequestAttribute_FilePath) as! String
       return self.responseForFile(request!, filePath: filePath, cacheable: false)
     }
   }
@@ -445,11 +443,11 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
       guard let indexFile = self?.currentAssetBundle?.indexFile else { return nil }
 
       let request = GCDWebServerRequest(method: requestMethod, url: requestURL, headers: requestHeaders, path: urlPath, query: urlQuery)
-      request?.setAttribute(indexFile, forKey: GCDWebServerRequestAttribute_Asset)
+      request.setAttribute(indexFile, forKey: GCDWebServerRequestAttribute_Asset)
       return request
       }) { (request) -> GCDWebServerResponse! in
         let asset = request.attribute(forKey: GCDWebServerRequestAttribute_Asset) as! Asset
-        return self.responseForAsset(request!, asset: asset)
+        return self.responseForAsset(request, asset: asset)
     }
   }
 
