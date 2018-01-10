@@ -37,7 +37,7 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
         configuration.appId = currentAssetBundle.appId
         configuration.rootURL = currentAssetBundle.rootURL
         configuration.cordovaCompatibilityVersion = currentAssetBundle.cordovaCompatibilityVersion
-        
+
         NSLog("Serving asset bundle version: \(currentAssetBundle.version)")
       }
     }
@@ -112,7 +112,7 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
         self?.revertToLastKnownGoodVersion()
       }
     }
-    
+
     NotificationCenter.default.addObserver(self, selector: #selector(WebAppLocalServer.pageDidLoad), name: NSNotification.Name.CDVPageDidLoad, object: webView)
 
     NotificationCenter.default.addObserver(self, selector: #selector(WebAppLocalServer.applicationDidEnterBackground), name: NSNotification.Name.UIApplicationDidEnterBackground, object: nil)
@@ -326,7 +326,7 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
       notifyError(WebAppError.unsuitableAssetBundle(reason: "Skipping downloading blacklisted version", underlyingError: nil))
       return false
     }
-    
+
     // Don't download versions potentially incompatible with the bundled native code
     if manifest.cordovaCompatibilityVersion != configuration.cordovaCompatibilityVersion {
       notifyError(WebAppError.unsuitableAssetBundle(reason: "Skipping downloading new version because the Cordova platform version or plugin versions have changed and are potentially incompatible", underlyingError: nil))
@@ -364,8 +364,7 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
 
     let options = [
       GCDWebServerOption_Port: NSNumber(value: localServerPort as UInt),
-      GCDWebServerOption_BindToLocalhost: true,
-      GCDWebServerOption_AutomaticallySuspendInBackground: false]
+      GCDWebServerOption_BindToLocalhost: true]
     try localServer.start(options: options)
 
     // Set localServerPort to the assigned port, in case it is different
@@ -383,22 +382,24 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
   private func addHandlerForAssetBundle() {
     localServer.addHandler(match: { [weak self] (requestMethod, requestURL, requestHeaders, urlPath, urlQuery) -> GCDWebServerRequest! in
       if requestMethod != "GET" { return nil }
-      guard let urlPath = urlPath else { return nil }
-      guard let asset = self?.currentAssetBundle?.assetForURLPath(urlPath) else { return nil }
+        if(self?.currentAssetBundle == nil) {
+            return nil;
+        }
 
-      let request = GCDWebServerRequest(method: requestMethod, url: requestURL, headers: requestHeaders, path: urlPath, query: urlQuery)!
+      let asset = self?.currentAssetBundle?.assetForURLPath(urlPath)
+
+      let request = GCDWebServerRequest(method: requestMethod, url: requestURL, headers: requestHeaders, path: urlPath, query: urlQuery)
       request.setAttribute(asset, forKey: GCDWebServerRequestAttribute_Asset)
       return request
     }) { (request) -> GCDWebServerResponse! in
-        let asset = request?.attribute(forKey: GCDWebServerRequestAttribute_Asset) as! Asset
-        return self.responseForAsset(request!, asset: asset)
+        let asset = request.attribute(forKey: GCDWebServerRequestAttribute_Asset) as! Asset
+        return self.responseForAsset(request, asset: asset)
     }
   }
 
   private func addHandlerForWwwDirectory() {
     localServer.addHandler(match: { [weak self] (requestMethod, requestURL, requestHeaders, urlPath, urlQuery) -> GCDWebServerRequest! in
       if requestMethod != "GET" { return nil }
-      guard let urlPath = urlPath else { return nil }
 
       // Do not serve files from /application, because these should only be served through the initial asset bundle
       if (urlPath.hasPrefix("/application")) { return nil }
@@ -407,18 +408,17 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
       if fileURL.isRegularFile != true { return nil }
 
       let request = GCDWebServerRequest(method: requestMethod, url: requestURL, headers: requestHeaders, path: urlPath, query: urlQuery)
-      request?.setAttribute(fileURL.path, forKey: GCDWebServerRequestAttribute_FilePath)
+      request.setAttribute(fileURL.path, forKey: GCDWebServerRequestAttribute_FilePath)
       return request
     }) { (request) -> GCDWebServerResponse! in
-      let filePath = request?.attribute(forKey: GCDWebServerRequestAttribute_FilePath) as! String
-      return self.responseForFile(request!, filePath: filePath, cacheable: false)
+      let filePath = request.attribute(forKey: GCDWebServerRequestAttribute_FilePath) as! String
+      return self.responseForFile(request, filePath: filePath, cacheable: false)
     }
   }
 
   private func addHandlerForLocalFileSystem() {
     localServer.addHandler(match: { (requestMethod, requestURL, requestHeaders, urlPath, urlQuery) -> GCDWebServerRequest! in
       if requestMethod != "GET" { return nil }
-      guard let urlPath = urlPath else { return nil }
 
       if !(urlPath.hasPrefix(localFileSystemPath)) { return nil }
 
@@ -427,18 +427,17 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
       if fileURL.isRegularFile != true { return nil }
 
       let request = GCDWebServerRequest(method: requestMethod, url: requestURL, headers: requestHeaders, path: urlPath, query: urlQuery)
-      request?.setAttribute(filePath, forKey: GCDWebServerRequestAttribute_FilePath)
+      request.setAttribute(filePath, forKey: GCDWebServerRequestAttribute_FilePath)
       return request
       }) { (request) -> GCDWebServerResponse! in
-        let filePath = request?.attribute(forKey: GCDWebServerRequestAttribute_FilePath) as! String
-        return self.responseForFile(request!, filePath: filePath, cacheable: false)
+        let filePath = request.attribute(forKey: GCDWebServerRequestAttribute_FilePath) as! String
+        return self.responseForFile(request, filePath: filePath, cacheable: false)
     }
   }
 
   private func addIndexFileHandler() {
     localServer.addHandler(match: { [weak self] (requestMethod, requestURL, requestHeaders, urlPath, urlQuery) -> GCDWebServerRequest! in
       if requestMethod != "GET" { return nil }
-      guard let urlPath = urlPath else { return nil }
 
       // Don't serve index.html for local file system paths
       if (urlPath.hasPrefix(localFileSystemPath)) { return nil }
@@ -448,11 +447,11 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
       guard let indexFile = self?.currentAssetBundle?.indexFile else { return nil }
 
       let request = GCDWebServerRequest(method: requestMethod, url: requestURL, headers: requestHeaders, path: urlPath, query: urlQuery)
-      request?.setAttribute(indexFile, forKey: GCDWebServerRequestAttribute_Asset)
+      request.setAttribute(indexFile, forKey: GCDWebServerRequestAttribute_Asset)
       return request
       }) { (request) -> GCDWebServerResponse! in
-        let asset = request?.attribute(forKey: GCDWebServerRequestAttribute_Asset) as! Asset
-        return self.responseForAsset(request!, asset: asset)
+        let asset = request.attribute(forKey: GCDWebServerRequestAttribute_Asset) as! Asset
+        return self.responseForAsset(request, asset: asset)
     }
   }
 
@@ -489,7 +488,7 @@ open class WebAppLocalServer: METPlugin, AssetBundleManagerDelegate {
     guard let response = GCDWebServerFileResponse(file: filePath, byteRange: request.byteRange) else {
       return GCDWebServerResponse(statusCode: GCDWebServerClientErrorHTTPStatusCode.httpStatusCode_NotFound.rawValue)
     }
-    
+
     response.setValue("bytes", forAdditionalHeader: "Accept-Ranges")
 
     if shouldSetCookie {

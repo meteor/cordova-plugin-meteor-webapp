@@ -2,19 +2,19 @@
 # http://guides.cocoapods.org/making/getting-setup-with-trunk.html
 # $ sudo gem update cocoapods
 # (optional) $ pod trunk register {email} {name} --description={computer}
-# $ pod trunk push
+# $ pod trunk --verbose push
 # DELETE THIS SECTION BEFORE PROCEEDING!
 
 Pod::Spec.new do |s|
   s.name     = 'GCDWebServer'
-  s.version  = '3.3.1'
+  s.version  = '3.4.2'
   s.author   =  { 'Pierre-Olivier Latour' => 'info@pol-online.net' }
   s.license  = { :type => 'BSD', :file => 'LICENSE' }
   s.homepage = 'https://github.com/swisspol/GCDWebServer'
   s.summary  = 'Lightweight GCD based HTTP server for OS X & iOS (includes web based uploader & WebDAV server)'
   
   s.source   = { :git => 'https://github.com/swisspol/GCDWebServer.git', :tag => s.version.to_s }
-  s.ios.deployment_target = '5.0'
+  s.ios.deployment_target = '8.0'
   s.tvos.deployment_target = '9.0'
   s.osx.deployment_target = '10.7'
   s.requires_arc = true
@@ -48,6 +48,5 @@ Pod::Spec.new do |s|
     cs.source_files = 'GCDWebUploader/*.{h,m}'
     cs.requires_arc = true
     cs.resource = "GCDWebUploader/GCDWebUploader.bundle"
-  end
-  
+  end 
 end
