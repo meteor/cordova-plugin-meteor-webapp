@@ -1,3 +1,22 @@
+# NOTE FROM ME (BMANTURNER)
+
+This fork contains the following:
+* [Update OkHttp dependency to 3.9.0](https://github.com/meteor/cordova-plugin-meteor-webapp/pull/35)
+* [Changes to alleviate (but not completely eliminate) HCP errors](https://github.com/meteor/meteor/issues/8063) (see note) - [Relevant fork](https://github.com/matdurand/cordova-plugin-meteor-webapp)
+
+**Note regarding HCP errors**
+
+Must be used with meteor's Reload package.
+
+```
+Reload._onMigrate(function (retry) {
+  if (Meteor.isCordova) {
+    cordova.exec(callback, console.error, 'WebAppLocalServer', 'switchPendingVersion', []);
+  }
+  return [true, {}];
+});
+```
+
 # Meteor WebApp Cordova plugin
 
 Cordova apps don’t load web content over the network, but rely on locally stored HTML, CSS, JavaScript code and other assets.
