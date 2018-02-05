@@ -23,7 +23,7 @@
   "author": "Meteor Development Group",
   "license": "MIT",
   "scripts": {
-    "test": "cordova-paramedic --platform ios --plugin . --verbose"
+    "test": "cordova-paramedic --config ./.paramedic.config.js"
   },
   "devDependencies": {
     "cordova": "^8.0.0",
