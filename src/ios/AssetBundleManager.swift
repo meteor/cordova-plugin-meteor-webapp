@@ -220,7 +220,15 @@ final class AssetBundleManager: AssetBundleDownloaderDelegate {
       // If we find a cached asset, we make a hard link to it
       if let cachedAsset = cachedAssetForAsset(asset) {
         do {
-          try fileManager.linkItem(at: cachedAsset.fileURL as URL, to: asset.fileURL as URL)
+          // Workaround for https://github.com/meteor/cordova-plugin-meteor-webapp/issues/56
+          //try fileManager.linkItem(at: cachedAsset.fileURL as URL, to: asset.fileURL as URL)
+          let linkExists = (try? asset.fileURL.checkResourceIsReachable()) ?? false
+          if !linkExists {
+            try fileManager.linkItem(at: cachedAsset.fileURL as URL, to: asset.fileURL as URL)
+          }
+          else {
+            NSLog("asset.fileURL \(asset.fileURL.path) exists! Avoiding bug by not linking")
+          }
         } catch {
           self.didFailWithError(WebAppError.fileSystemFailure(reason: "Could not link to cached asset", underlyingError: error))
           return
