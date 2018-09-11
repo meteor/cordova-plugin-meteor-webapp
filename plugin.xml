@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
   id="cordova-plugin-meteor-webapp"
-  version="1.4.2">
+  version="1.6.0">
   <name>Meteor Webapp</name>
   <description>Cordova plugin that serves a Meteor web app through a local server and implements hot code push</description>
   <keywords>cordova,meteor</keywords>
@@ -111,6 +111,6 @@
     <source-file src="src/android/IOUtils.java" target-dir="src/com/meteor/webapp" />
 
     <framework src="src/android/build-extras.gradle" custom="true" type="gradleReference" />
-    <framework src="com.squareup.okhttp3:okhttp:3.1.2" />
+    <framework src="com.squareup.okhttp3:okhttp:3.9.1" />
   </platform>
 </plugin>
