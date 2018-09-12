@@ -48,6 +48,11 @@ class AssetBundle {
             return resourceApi.mapUriToFile(getFileUri());
         }
 
+        public File getTemporaryFile() throws IOException {
+            File file = this.getFile();
+            return File.createTempFile(file.getName(), "tmp");
+        }
+
         @Override
         public String toString() {
             return urlPath;
@@ -113,14 +118,6 @@ class AssetBundle {
 
     protected void addAsset(Asset asset) {
         ownAssetsByURLPath.put(asset.urlPath, asset);
-    }
-
-    public Uri getDirectoryUri() {
-        return directoryUri;
-    }
-
-    public File getDirectory() {
-        return resourceApi.mapUriToFile(directoryUri);
     }
 
     public Set<Asset> getOwnAssets() {

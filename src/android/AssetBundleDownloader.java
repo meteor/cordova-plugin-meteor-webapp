@@ -27,8 +27,7 @@ class AssetBundleDownloader {
 
     public interface Callback {
         public void onFinished();
-
-        public void onFailure(Throwable cause, Boolean state);
+        public void onFailure(Throwable cause);
     }
 
     private Callback callback;
@@ -95,9 +94,12 @@ class AssetBundleDownloader {
                         }
 
                         try {
-                            IOUtils.writeToFile(response.body().source(), asset.getFile());
-                        } catch (IOException e) {
-                            didFail(e, !deleteIfExists(asset.getFile()));
+                            File file = IOUtils.writeToFile(response.body().source(), asset.getTemporaryFile());
+                            if (!file.renameTo(asset.getFile())) {
+                                throw new IOException("Failed to rename a temporary download file.");
+                            }
+                        } catch (Exception e) {
+                            didFail(e);
                             return;
                         }
 
@@ -129,10 +131,6 @@ class AssetBundleDownloader {
                 });
             }
         }
-    }
-
-    private boolean deleteIfExists(File file) {
-        return !file.exists() || file.delete();
     }
 
     protected HttpUrl downloadUrlForAsset(AssetBundle.Asset asset) {
@@ -211,29 +209,13 @@ class AssetBundleDownloader {
         }
     }
 
-    private Boolean cleanupDownload() {
-        return IOUtils.deleteRecursively(assetBundle.getDirectory());
-    }
-
     protected void didFail(Throwable cause) {
-        didFail(cause, false);
-    }
-
-    protected void didFail(Throwable cause, Boolean cleanupDownload) {
         if (canceled) return;
 
         cancel();
 
-        Boolean cleanState = true;
-        // If there is a risk that the partially downloaded update contains corrupted files we need
-        // to wipe it out.
-        if (cleanupDownload) {
-            cleanState = cleanupDownload();
-            // If it failed we need to be sure it would not be used.
-        }
-
         if (callback != null) {
-            callback.onFailure(cause, cleanState);
+            callback.onFailure(cause);
         }
     }
 
