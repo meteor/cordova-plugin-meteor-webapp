@@ -308,7 +308,15 @@ final class AssetBundleDownloader: NSObject, URLSessionDelegate, URLSessionTaskD
       }
 
       do {
-        try fileManager.moveItem(at: location, to: asset.fileURL as URL)
+        // Workaround for https://github.com/meteor/cordova-plugin-meteor-webapp/issues/56
+        // try fileManager.moveItem(at: location, to: asset.fileURL as URL)
+        let linkExists = (try? asset.fileURL.checkResourceIsReachable()) ?? false
+        if !linkExists {
+          try fileManager.moveItem(at: location, to: asset.fileURL as URL)
+        }
+        else {
+          NSLog("asset.fileURL \(asset.fileURL.path) exists! Avoiding bug by not moving")
+        }
       } catch {
         self.cancelAndFailWithReason("Could not move downloaded asset", underlyingError: error)
         return
