@@ -28,12 +28,14 @@ module.exports = {
       []);
   },
 
-  switchToPendingVersion: function(callback, errorCallback = Function.prototype) {
+  switchToPendingVersion: function(callback, errorCallback) {
     cordova.exec(
       callback,
       (error) => {
         console.error(error);
-        errorCallback(error);
+        if (typeof errorCallback === "function") {
+          errorCallback(error);
+        }
       },
       "WebAppLocalServer",
       "switchPendingVersion",
