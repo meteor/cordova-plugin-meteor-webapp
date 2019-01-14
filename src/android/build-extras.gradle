@@ -20,7 +20,7 @@ cdvPluginPostBuildExtras.add({
     def inAssetsDir = file("src/main/assets")
     if (!inAssetsDir.exists()) {
         // Backwards compatibility for cordova-android < 7.0.0:
-        inAssetsDir = file("assets");
+        inAssetsDir = file("assets")
     }
     def outAssetsDir = inAssetsDir
     def outFile = new File(outAssetsDir, "cdvasset.manifest")
