@@ -10,16 +10,18 @@ import org.apache.cordova.CallbackContext;
 import org.apache.cordova.Config;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CordovaResourceApi;
+import org.apache.cordova.LOG;
 import org.apache.cordova.PluginResult;
 import org.json.JSONArray;
 import org.json.JSONException;
 
-import java.io.File;
+import java.io.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.net.URI;
 
 import okhttp3.HttpUrl;
 
@@ -41,6 +43,8 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
 
     private String launchUrl;
     private int localServerPort;
+
+    private Boolean switchedToNewVersion = false;
 
     private List<WebResourceHandler> resourceHandlers;
 
@@ -124,6 +128,7 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
     void initializeAssetBundles() throws WebAppException {
         // The initial asset bundle consists of the assets bundled with the app
         AssetBundle initialAssetBundle = new AssetBundle(resourceApi, applicationDirectoryUri);
+        Log.d(LOG_TAG, "Initial bundle loaded " + initialAssetBundle.getVersion());
 
         // Downloaded versions are stored in /data/data/<app>/files/meteor
         File versionsDirectory = new File(cordova.getActivity().getFilesDir(), "meteor");
@@ -160,7 +165,7 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
             currentAssetBundle = assetBundleManager.downloadedAssetBundleWithVersion(lastDownloadedVersion);
             if (currentAssetBundle == null) {
                 currentAssetBundle = initialAssetBundle;
-            } else if (!configuration.getLastKnownGoodVersion().equals(lastDownloadedVersion)) {
+            } else if (configuration.getLastKnownGoodVersion() == null || !configuration.getLastKnownGoodVersion().equals(lastDownloadedVersion)) {
                 startStartupTimer();
             }
         } else {
@@ -179,20 +184,12 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
         newVersionReadyCallbackContext = null;
         errorCallbackContext = null;
 
-        // If there is a pending asset bundle, we make it the current
-        if (pendingAssetBundle != null) {
-            currentAssetBundle = pendingAssetBundle;
-            pendingAssetBundle = null;
-        }
-
-        Log.i(LOG_TAG, "Serving asset bundle with version: " + currentAssetBundle.getVersion());
-
         configuration.setAppId(currentAssetBundle.getAppId());
         configuration.setRootUrlString(currentAssetBundle.getRootUrlString());
         configuration.setCordovaCompatibilityVersion(currentAssetBundle.getCordovaCompatibilityVersion());
 
-        // Don't start startup timer when running a test
-        if (testingDelegate == null) {
+        if (switchedToNewVersion) {
+            switchedToNewVersion = false;
             startStartupTimer();
         }
     }
@@ -217,6 +214,19 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
         }
     }
 
+    private void switchPendingVersion(CallbackContext callbackContext) {
+        // If there is a pending asset bundle, we make it the current.
+        if (pendingAssetBundle != null) {
+            Log.i(LOG_TAG, "Switching pending version " + pendingAssetBundle.getVersion() + " as current version.");
+            currentAssetBundle = pendingAssetBundle;
+            pendingAssetBundle = null;
+            switchedToNewVersion = true;
+            callbackContext.success();
+        } else {
+            callbackContext.error("No pending version to switch to");
+        }
+    }
+
     //endregion
 
     //region Public plugin commands
@@ -235,12 +245,14 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
         } else if ("startupDidComplete".equals(action)) {
             startupDidComplete(callbackContext);
             return true;
+        } else if ("switchPendingVersion".equals(action)) {
+            switchPendingVersion(callbackContext);
+            return true;
         }
 
         if (testingDelegate != null) {
             return testingDelegate.execute(action, args, callbackContext);
         }
-
         return false;
     }
 
@@ -295,6 +307,8 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
     private void startupDidComplete(CallbackContext callbackContext) {
         removeStartupTimer();
 
+        Log.i(LOG_TAG, "Startup completed received. New good version is " + currentAssetBundle.getVersion());
+
         // If startup completed successfully, we consider a version good
         configuration.setLastKnownGoodVersion(currentAssetBundle.getVersion());
 
@@ -322,7 +336,6 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
                 pendingAssetBundle = assetBundle;
             }
         }
-
         // Else, revert to the initial asset bundle, unless that is what we are currently serving
         else if (!currentAssetBundle.equals(assetBundleManager.initialAssetBundle)) {
             pendingAssetBundle = assetBundleManager.initialAssetBundle;
@@ -330,6 +343,7 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
 
         // Only reload if we have a pending asset bundle to reload
         if (pendingAssetBundle != null) {
+            Log.i(LOG_TAG, "Reverting to: " + pendingAssetBundle.getVersion());
             cordova.getActivity().runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
@@ -337,6 +351,8 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
 
                 }
             });
+        } else {
+            Log.w(LOG_TAG, "No suitable version to revert to.");
         }
     }
 
@@ -375,6 +391,7 @@ public class WebAppLocalServer extends CordovaPlugin implements AssetBundleManag
 
     @Override
     public void onFinishedDownloadingAssetBundle(AssetBundle assetBundle) {
+        Log.i(LOG_TAG, "Finished downloading " + assetBundle.getVersion());
         configuration.setLastDownloadedVersion(assetBundle.getVersion());
         pendingAssetBundle = assetBundle;
         notifyNewVersionReady(assetBundle.getVersion());
