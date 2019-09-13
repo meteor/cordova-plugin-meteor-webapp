@@ -1,1 +1,7 @@
 node_modules/
+
+tests/src/ios/GCDWebServer/.DS_Store
+
+tests/.DS_Store
+
+.DS_Store
