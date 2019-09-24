@@ -191,7 +191,7 @@ class AssetBundle {
             JSONObject runtimeConfig = getRuntimeConfig();
             if (runtimeConfig != null) {
                 try {
-                    rootUrlString = runtimeConfig.getString("ROOT_URL");
+                    rootUrlString = runtimeConfig.getString("ROOT_URL").replace("localhost","10.0.2.2");
                 } catch (JSONException e) {
                     Log.w(LOG_TAG, "Error reading ROOT_URL from runtime config", e);
                 }
