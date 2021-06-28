@@ -191,7 +191,10 @@ class AssetBundle {
             JSONObject runtimeConfig = getRuntimeConfig();
             if (runtimeConfig != null) {
                 try {
-                    rootUrlString = runtimeConfig.getString("ROOT_URL");
+                    const localhost = "localhost";
+                    const emulatorHostLoopbackAddr = "10.0.2.2";
+                    let rootUrlStringOrig = runtimeConfig.getString("ROOT_URL");                   
+                    rootUrlString = rootUrlStringOrig.replace( localhost, emulatorHostLoopbackAddr );
                 } catch (JSONException e) {
                     Log.w(LOG_TAG, "Error reading ROOT_URL from runtime config", e);
                 }
