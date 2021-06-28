@@ -47,10 +47,12 @@ final class AssetBundleManager: AssetBundleDownloaderDelegate {
     operationQueue.maxConcurrentOperationCount = 1
     operationQueue.underlyingQueue = queue
     
-    // We use a separate to download the manifest, so we can use caching
-    // (which we disable for the session we use to download the other files 
-    // in AssetBundleDownloader)
-    session = URLSession(configuration: URLSessionConfiguration.default, delegate: nil, delegateQueue: operationQueue)
+    // An ephemeral session configuration object is similar to a default session configuration, 
+    // except that the corresponding session object doesn’t store caches, credential stores, 
+    // or any session-related data to disk. Instead, session-related data is stored in RAM.
+    
+    // Setting this to ephemeral makes sure that manifest.json is never cached locally.
+    session = URLSession(configuration: URLSessionConfiguration.ephemeral, delegate: nil, delegateQueue: operationQueue)
   }
   
   deinit {
