@@ -1,6 +1,6 @@
 {
   "name": "cordova-plugin-meteor-webapp",
-  "version": "1.9.1",
+  "version": "1.9.2",
   "description": "Cordova plugin that serves a Meteor web app through a local server and implements hot code push",
   "cordova": {
     "id": "cordova-plugin-meteor-webapp",
@@ -27,12 +27,12 @@
     "test": "cordova-paramedic --plugin . --platform ios --target 'iPhone-11-Pro-Max' --args=--buildFlag='-UseModernBuildSystem=0' --verbose"
   },
   "dependencies": {
-    "xcode": "^2.0.0"
+    "xcode": "^2.1.0"
   },
   "devDependencies": {
-    "cordova": "^9.0.0",
+    "cordova": "^10.0.0",
     "cordova-paramedic": "github:meteor/cordova-paramedic#40df66c3efc2f0db4d66b8c172174a68c031c114",
-    "ios-deploy": "^1.10.0-beta.3",
+    "ios-deploy": "^1.11.4",
     "ios-sim": "^8.0.2"
   }
 }
