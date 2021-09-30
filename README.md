@@ -2,6 +2,8 @@
 
 Cordova apps don’t load web content over the network, but rely on locally stored HTML, CSS, JavaScript code and other assets.
 
+> This repository has been merged into Meteor main repository. You can [find it there under npm-packages](https://github.com/meteor/meteor/tree/devel/npm-packages/cordova-plugin-meteor-webapp).
+
 Plain Cordova uses `file://` URLs to serve assets from the app bundle, but this has some drawbacks:
 * We need the ability to reliably switch over to new versions of the app
 * file:// triggers some non-standard browser behaviors and bugs
